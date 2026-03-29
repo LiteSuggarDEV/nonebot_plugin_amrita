@@ -5,8 +5,8 @@ description = "AmritaCore support for NoneBot2"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "amrita-core>=0.6.2",
-    # "nonebot-plugin-orm>=0.8.3",
+    "amrita-core>=0.7.1",
+    "nonebot-plugin-orm>=0.8.3",
     "nonebot2>=2.4.4",
 ]
 
@@ -52,11 +52,11 @@ typeCheckingMode = "standard"
 plugins=[
     "nonebot_plugin_amrita",
     "nonebot_plugin_localstore",
-    # "nonebot_plugin_orm",
+    "nonebot_plugin_orm",
 ]
 
 [dependency-groups]
 dev = [
     "nonebot2[fastapi]>=2.4.4",
-    # "nonebot-plugin-orm[default]>=0.8.3",
+    "nonebot-plugin-orm[default]>=0.8.3",
 ]

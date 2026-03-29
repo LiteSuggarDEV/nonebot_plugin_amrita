@@ -11,22 +11,21 @@ from amrita_core.config import (
     FunctionConfig,
     LLMConfig,
 )
-from nonebot import get_driver, get_plugin_config, logger
+from nonebot import get_driver, logger
 from nonebot import log as nb_log
 from nonebot.plugin import PluginMetadata
 
+from . import config as conf_module
 from .config import Config
 
 __plugin_meta__ = PluginMetadata(
-    name="NoneBot2的AmritaCore支持库",
-    description="Add AmritaCore support to nonebot",
+    name="LibAmritaCore",
+    description="Add AmritaCore (a high performance agent core) support to nonebot2",
     usage="View `https://amrita-core.suggar.top/zh` for details.",
     type="library",
     config=Config,
     supported_adapters=None,
 )
-
-_config = get_plugin_config(Config)
 
 
 def _patch_logger():
@@ -45,15 +44,15 @@ _patch_logger()  # AmritaCore会修改Loguru的配置，这里重置为NoneBot2�
 
 
 def replace_config(config: Config):
-    global _config
+
     if not isinstance(config, Config):
         raise TypeError("config must be Config")
-    _config = config
+    conf_module._config = config
 
 
 @get_driver().on_startup
 async def init():
-    global _config
+    _config = conf_module._config
     am_cookie_conf = CookieConfig(
         enable_cookie=_config.amrita_cookie_enable, cookie=_config.amrita_cookie
     )
@@ -83,6 +82,7 @@ async def init():
 @get_driver().on_shutdown
 async def shutdown():
     logger.info("Shutting down AmritaCore...")
+
     async def kill_all(objs: list[ChatObject]):
         for obj in objs:
             with contextlib.suppress(Exception):
