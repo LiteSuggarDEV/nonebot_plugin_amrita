@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import typing
+
 from amrita_core import (
     AgentRuntime as AmRuntime,
-    ModelPreset,
+)
+from amrita_core import (
     AmritaConfig,
+    ModelPreset,
     PresetManager,
     SessionsManager,
     get_config,
@@ -12,7 +16,7 @@ from amrita_core.types import Message
 from nonebot.adapters import Event
 
 from nonebot_plugin_amrita.database import make_id
-from nonebot_plugin_amrita.memory import CachedUserDataRepository
+from nonebot_plugin_amrita.memory import AwaredMemory, CachedUserDataRepository
 
 
 class AgentSession(AmRuntime):
@@ -37,3 +41,8 @@ class AgentSession(AmRuntime):
 
     async def save_context(self):
         session_id = self.session_id
+        dm = CachedUserDataRepository()
+        context: AwaredMemory = typing.cast(AwaredMemory, self.context)
+        mem = await dm.get_memory(session_id)
+        mem.memory_json = context
+        await dm.update_memory_data(mem)

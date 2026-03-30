@@ -184,6 +184,7 @@ class CachedUserDataRepository:
         data.clean()
         self._cached_memory[uni_id] = data
 
+
 def add_usage(
     ins: InsightsModel | UserMetadataSchema, usage: UniResponseUsage[int] | None
 ):
