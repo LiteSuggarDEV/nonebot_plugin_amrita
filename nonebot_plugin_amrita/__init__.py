@@ -31,6 +31,7 @@ __plugin_meta__ = PluginMetadata(
     description="Add AmritaCore (a high performance agent core) support to nonebot2",
     usage="View `https://amrita-core.suggar.top/zh` for details.",
     type="library",
+    homepage="https://github.com/LiteSuggarDEV/nonebot_plugin_amrita",
     config=Config,
     supported_adapters=None,
 )
