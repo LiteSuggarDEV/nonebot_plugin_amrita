@@ -2,6 +2,11 @@ import asyncio
 import contextlib
 import sys
 
+from nonebot import require
+
+require("nonebot_plugin_localstore")
+require("nonebot_plugin_orm")
+
 import amrita_core
 from amrita_core import ChatManager, ChatObject, minimal_init
 from amrita_core.config import (
