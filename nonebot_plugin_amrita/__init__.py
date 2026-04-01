@@ -15,8 +15,11 @@ from nonebot import get_driver, logger
 from nonebot import log as nb_log
 from nonebot.plugin import PluginMetadata
 
+from . import agent, database, dirty, memory
 from . import config as conf_module
 from .config import Config
+from .database import InsightsModel, UserDataExecutor
+from .memory import CachedUserDataRepository, MemorySchema
 
 __plugin_meta__ = PluginMetadata(
     name="LibAmritaCore",
@@ -92,3 +95,17 @@ async def shutdown():
         *[kill_all(objs) for objs in ChatManager().running_chat_object.values()],
         return_exceptions=True,
     )
+
+
+__all__ = [
+    "CachedUserDataRepository",
+    "ChatManager",
+    "ChatObject",
+    "InsightsModel",
+    "MemorySchema",
+    "UserDataExecutor",
+    "agent",
+    "database",
+    "dirty",
+    "memory",
+]
