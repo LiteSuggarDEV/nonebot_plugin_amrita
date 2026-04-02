@@ -55,6 +55,9 @@ plugins=[
     "nonebot_plugin_orm",
 ]
 
+[tool.setuptools.packages.find]
+include = ["nonebot_plugin_amrita*"]
+
 [dependency-groups]
 dev = [
     "nonebot2[fastapi]>=2.4.4",
