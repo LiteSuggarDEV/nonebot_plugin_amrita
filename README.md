@@ -142,13 +142,13 @@ async def handle_chat(event: Event):
 
 `AgentSession` 继承自 `AmRuntime`，提供以下核心方法：
 
-- **`load_from(id_or_event, train, config, preset, **kwargs)`\*\*: 类方法，从事件或字符串 ID 加载会话
+- **`load_from(id_or_event, train, config, preset, **kwargs)`**: 类方法，从事件或字符串 ID 加载会话
   - `id_or_event`: `Event` 对象或字符串 ID（推荐使用 `event.get_session_id()`）
   - `train`: 训练数据，可以是 `Message[str]` 或 `dict[str, str]`
   - `config`: AmritaCore 配置，为 `None` 时使用全局配置
   - `preset`: 模型预设，为 `None` 时使用默认预设
 
-- **`chat(input, **kwargs)`\*\*: 发送消息并获取响应
+- **`chat(input, **kwargs)`**: 发送消息并获取响应
 - **`save_context()`**: 手动保存上下文到数据库
 - **`get_chatobject(input, **kwargs)`**: 获取 `ChatObject` 实例（内部使用）
 
@@ -268,8 +268,8 @@ async with await AgentSession.load_from(
    两者为完全独立的依赖注入设计。
    AmritaCore 注入属于 **Agent 运行时内核层**，与 NoneBot2 无关。
 
-2. **本插件数据库与 AmritaBot 完全隔离**
-   不共享表名、不共享数据、不互相依赖，仅同源设计。
+2. **本插件数据库与 AmritaBot 同源**
+   共享数据与表结构，不互相依赖，同源设计。
 
 3. **本插件不依赖 AmritaBot**
    可独立安装、独立运行、独立部署。
