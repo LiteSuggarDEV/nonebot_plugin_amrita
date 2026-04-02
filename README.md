@@ -109,7 +109,7 @@ matcher = on_command("chat")
 @matcher.handle()
 async def handle_chat(
     session: AgentSession = SessionDepends(
-        train={"system": "你是一个助手"},
+        train={"role": "system","content": "你是一个助手"},
         config=None,  # 使用默认配置或传入自定义 AmritaConfig
         preset=None,  # 使用默认预设或传入自定义 ModelPreset
     )
@@ -128,7 +128,7 @@ from nonebot.adapters import Event
 async def handle_chat(event: Event):
     async with await AgentSession.load_from(
         id_or_event=event,
-        train={"system": "你是一个助手"},
+        train={"role": "system","content": "你是一个助手"},
         config=None,
         preset=None,
     ) as agent:
@@ -254,7 +254,7 @@ custom_preset = ModelPreset(
 
 async with await AgentSession.load_from(
     event,
-    train={"system": "..."},
+    train={"role": "system","content": "你是一个助手"},
     preset=custom_preset
 ) as agent:
     ...
