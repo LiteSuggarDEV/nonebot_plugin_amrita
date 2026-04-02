@@ -163,7 +163,7 @@ SqlModel_T = TypeVar("SqlModel_T", bound=HasUserIDModel, contravariant=True)
 
 
 class GlobalInsights(Model):
-    __tablename__ = "libamrita_global_insights"
+    __tablename__ = "amrita_global_insights"
     date: Mapped[str] = mapped_column(
         String(64),
         primary_key=True,
@@ -179,7 +179,7 @@ class GlobalInsights(Model):
 
 
 class UserMetadata(Model, HasUserIDModel):
-    __tablename__ = "libamrita_user_metadata"
+    __tablename__ = "amrita_user_metadata"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(String(64), nullable=False)
     last_active: Mapped[datetime] = mapped_column(
@@ -200,13 +200,13 @@ class UserMetadata(Model, HasUserIDModel):
     tokens_output: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
     called_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     __table_args__ = (
-        Index("idx_am_amrita_user_id_last_active", "user_id", "last_active"),
+        Index("idx_amrita_user_id_last_active", "user_id", "last_active"),
         UniqueConstraint("user_id", name="uq_amrita_user_metadata_user_id"),
     )
 
 
 class Memory(Model, HasUserIDModel):
-    __tablename__ = "libamrita_memory_data"
+    __tablename__ = "amrita_memory_data"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(
         String(64),
@@ -224,7 +224,7 @@ class Memory(Model, HasUserIDModel):
 
 
 class MemorySessions(Model):
-    __tablename__ = "libamrita_memory_sessions"
+    __tablename__ = "amrita_memory_sessions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[str] = mapped_column(
         String(64),
