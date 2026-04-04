@@ -253,7 +253,7 @@ class DirtyAwareModel(BaseModel):
 
     def _mark_dirty(self, name: str):
         exclue: tuple[str, ...] | None
-        if exclue := getattr(self, "dirty_excluede__", None):
+        if exclue := getattr(self, "dirty_exclude__", None):
             if name in exclue or name.endswith("__"):
                 return
         dirty_vars: set[str] | None = getattr(self, "dirtyvars__", None)

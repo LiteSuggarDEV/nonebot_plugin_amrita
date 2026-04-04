@@ -22,7 +22,7 @@ class BaseSchema(BaseModel):
     Base Schema
     """
 
-    dirty_excluede__: tuple = Field(
+    dirty_exclude__: tuple = Field(
         ("id", "user_id", "model_config"), exclude=True, init=False
     )
     readonly__: tuple = Field(
