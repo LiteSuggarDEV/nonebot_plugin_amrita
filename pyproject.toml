@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "amrita-core>=0.8.0",
+    "nonebot-plugin-localstore>=0.7.4",
     "nonebot-plugin-orm>=0.8.3",
     "nonebot2>=2.4.4",
 ]

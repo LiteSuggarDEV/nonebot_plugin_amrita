@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import sys
 
 from nonebot import require
 
@@ -40,7 +39,9 @@ __plugin_meta__ = PluginMetadata(
 def _patch_logger():
     amrita_core.logging.logger = nb_log.logger
     amrita_core.logger = nb_log.logger
-    amrita_core.logging.logger_id.value = nb_log.logger_id # AmritaCore的id事实上是个可变对象。
+    amrita_core.logging.logger_id.value = (
+        nb_log.logger_id
+    )  # AmritaCore的id事实上是个可变对象。
 
 
 _patch_logger()  # 为了规范化日志输出，我们把AmritaCore的本身的logger替换掉（它是独立的logger对象）。
