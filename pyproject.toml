@@ -1,11 +1,11 @@
 [project]
 name = "nonebot-plugin-amrita"
-version = "0.1.2"
+version = "0.1.3"
 description = "AmritaCore support for NoneBot2"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "amrita-core>=0.7.1",
+    "amrita-core>=0.8.0",
     "nonebot-plugin-orm>=0.8.3",
     "nonebot2>=2.4.4",
 ]
