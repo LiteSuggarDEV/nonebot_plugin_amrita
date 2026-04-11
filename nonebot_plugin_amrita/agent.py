@@ -96,9 +96,9 @@ class AgentSession(AmRuntime):
 
     @typing_extensions.override
     def get_chatobject(
-        self, input: typing.Sequence[Content] | str | None, **kwargs
+        self, user_input: typing.Sequence[Content] | str | None, **kwargs
     ) -> ChatObject:
-        obj = super().get_chatobject(input, **kwargs)
+        obj = super().get_chatobject(user_input, **kwargs)
         self.chat_objs.append(obj)
         return obj
 
