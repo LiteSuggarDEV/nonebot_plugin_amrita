@@ -48,6 +48,9 @@ def make_id(obj: Event | str) -> str:
     )
 
 
+_expire_last_check_at: datetime | None = None
+
+
 class InsightsModel(BaseModel):
     date: str = Field(
         default_factory=lambda: datetime.now().strftime("%Y-%m-%d"), description="日期"
@@ -142,8 +145,11 @@ class InsightsModel(BaseModel):
         Args:
             days: 保留天数，超过此天数的记录将被删除
         """
-        # 计算截止日期
-        cutoff_date = datetime.now() - timedelta(days=days)
+        global _expire_last_check_at
+        now: datetime = datetime.now()
+        if not _expire_last_check_at or _expire_last_check_at.date() != now.date():
+            return
+        cutoff_date: datetime = now - timedelta(days=days)
 
         # 删除过期记录
         stmt = delete(GlobalInsights).where(
