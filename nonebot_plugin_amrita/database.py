@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import time
-from asyncio import Lock, Protocol
+from asyncio import Protocol
 from collections.abc import Sequence
+from contextlib import nullcontext
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import Any, TypeVar
 
+from aiologic import Lock
 from amrita_core.types import (
     BaseModel,
     MemoryModel,
@@ -36,9 +38,6 @@ from typing_extensions import Self
 
 from .lock import database_lock
 
-if TYPE_CHECKING:
-    from .memory import AwaredMemory
-
 
 def make_id(obj: Event | str) -> str:
     return (
@@ -49,6 +48,7 @@ def make_id(obj: Event | str) -> str:
 
 
 _expire_last_check_at: datetime | None = None
+NULL = nullcontext()
 
 
 class InsightsModel(BaseModel):
@@ -63,79 +63,82 @@ class InsightsModel(BaseModel):
     async def get_all(cls, expire_days: int = 7) -> list[Self]:
         async with database_lock():
             async with get_session() as session:
-                await cls._delete_expired(
-                    days=expire_days,
-                    session=session,
-                )
-                stmt = select(GlobalInsights)
-                insights = (await session.execute(stmt)).scalars().all()
-                session.add_all(insights)
-                return [cls.model_validate(x, from_attributes=True) for x in insights]
+                async with session.begin():
+                    await cls._delete_expired(
+                        days=expire_days,
+                        session=session,
+                    )
+                    stmt = select(GlobalInsights)
+                    insights = (await session.execute(stmt)).scalars().all()
+                    return [
+                        cls.model_validate(x, from_attributes=True) for x in insights
+                    ]
 
     @classmethod
     async def get(cls, expire_days: int = 7) -> Self:
         date_now = datetime.now().strftime("%Y-%m-%d")
         async with database_lock(date_now):
             async with get_session() as session:
-                await cls._delete_expired(
-                    days=expire_days,
-                    session=session,
-                )
-                if (
-                    insights := (
-                        await session.execute(
-                            select(GlobalInsights).where(
-                                GlobalInsights.date == date_now
+                async with session.begin():
+                    await cls._delete_expired(
+                        days=expire_days,
+                        session=session,
+                    )
+                    if (
+                        insights := (
+                            await session.execute(
+                                select(GlobalInsights).where(
+                                    GlobalInsights.date == date_now
+                                )
                             )
-                        )
-                    ).scalar_one_or_none()
-                ) is None:
-                    stmt = insert(GlobalInsights).values(date=date_now)
-                    await session.execute(stmt)
-                    insights = (
-                        await session.execute(
-                            select(GlobalInsights).where(
-                                GlobalInsights.date == date_now
+                        ).scalar_one_or_none()
+                    ) is None:
+                        stmt = insert(GlobalInsights).values(date=date_now)
+                        await session.execute(stmt)
+                        insights = (
+                            await session.execute(
+                                select(GlobalInsights).where(
+                                    GlobalInsights.date == date_now
+                                )
                             )
-                        )
-                    ).scalar_one()
-                session.add(insights)
-                instance = cls.model_validate(insights, from_attributes=True)
+                        ).scalar_one()
+                    instance = cls.model_validate(insights, from_attributes=True)
             return instance
 
     async def save(self, expire_days: int = 7):
         """保存数据"""
         async with database_lock(self.date):
             async with get_session() as session:
-                await self._delete_expired(
-                    days=expire_days,
-                    session=session,
-                )
-                stmt = select(GlobalInsights).where(GlobalInsights.date == self.date)
-                if ((await session.execute(stmt)).scalar_one_or_none()) is None:
-                    stmt = insert(GlobalInsights).values(
-                        **{
-                            k: v
-                            for k, v in self.model_dump().items()
-                            if hasattr(GlobalInsights, k)
-                        }
+                async with session.begin():
+                    await self._delete_expired(
+                        days=expire_days,
+                        session=session,
                     )
-                    await session.execute(stmt)
-                    await session.commit()
-                else:
-                    stmt = (
-                        update(GlobalInsights)
-                        .where(GlobalInsights.date == self.date)
-                        .values(
+                    stmt = select(GlobalInsights).where(
+                        GlobalInsights.date == self.date
+                    )
+                    if ((await session.execute(stmt)).scalar_one_or_none()) is None:
+                        stmt = insert(GlobalInsights).values(
                             **{
                                 k: v
                                 for k, v in self.model_dump().items()
                                 if hasattr(GlobalInsights, k)
                             }
                         )
-                    )
-                    await session.execute(stmt)
-                    await session.commit()
+                        await session.execute(stmt)
+                    else:
+                        stmt = (
+                            update(GlobalInsights)
+                            .where(GlobalInsights.date == self.date)
+                            .values(
+                                **{
+                                    k: v
+                                    for k, v in self.model_dump().items()
+                                    if hasattr(GlobalInsights, k)
+                                }
+                            )
+                        )
+                        await session.execute(stmt)
 
     @staticmethod
     async def _delete_expired(*, days: int, session: AsyncSession) -> None:
@@ -147,7 +150,7 @@ class InsightsModel(BaseModel):
         """
         global _expire_last_check_at
         now: datetime = datetime.now()
-        if not _expire_last_check_at or _expire_last_check_at.date() != now.date():
+        if _expire_last_check_at and _expire_last_check_at.date() == now.date():
             return
         cutoff_date: datetime = now - timedelta(days=days)
 
@@ -155,8 +158,9 @@ class InsightsModel(BaseModel):
         stmt = delete(GlobalInsights).where(
             GlobalInsights.date < cutoff_date.strftime("%Y-%m-%d")
         )
-        await session.execute(stmt)
-        await session.commit()
+        async with session.begin_nested():
+            await session.execute(stmt)
+        _expire_last_check_at = now
 
 
 class HasUserIDModel(Protocol):
@@ -249,7 +253,7 @@ class MemorySessions(Model):
     )
 
     @classmethod
-    async def _expire(cls, user_id: str, keep_count: int = 20):
+    async def _expire(cls, session: AsyncSession, user_id: str, keep_count: int = 20):
         """
         保留特定数量的sessions，移除多余的会话记录
 
@@ -259,7 +263,7 @@ class MemorySessions(Model):
             keep_count: 要保留的会话数量，默认为20
         """
         # 查询指定user_id的所有会话，按创建时间倒序排列
-        async with get_session() as session:
+        async with session.begin_nested():
             stmt = (
                 select(cls.id)
                 .where(cls.user_id == user_id)
@@ -275,16 +279,14 @@ class MemorySessions(Model):
                 delete_stmt = delete(cls).where(cls.id.in_(ids_to_delete))
                 await session.execute(delete_stmt)
 
-                # 提交更改
-                await session.commit()
-
     @classmethod
-    async def get(cls, session: AsyncSession, uni_user_id: str) -> Sequence[Self]:
-        async with database_lock(uni_user_id):
-            await cls._expire(uni_user_id, keep_count=20)
+    async def get(
+        cls, session: AsyncSession, uni_user_id: str, no_lock: bool = False
+    ) -> Sequence[Self]:
+        async with database_lock(uni_user_id) if not no_lock else NULL:
+            await cls._expire(session, uni_user_id, keep_count=20)
             stmt = select(cls).where(cls.user_id == uni_user_id)
             data = (await session.execute(stmt)).scalars().all()
-            session.add_all(data)
             return data
 
 
@@ -321,8 +323,12 @@ class UserDataExecutor:
 
     async def __aenter__(self) -> Self:
         self._entered = True
-        await self._lock.acquire()
-        self._transaction = self.session.begin()
+        await self._lock.async_acquire()
+        self._transaction = (
+            self.session.begin()
+            if self._arg_session is None
+            else self.session.begin_nested()
+        )
         if self._arg_session is None:
             await self.session.__aenter__()
         await self._transaction.__aenter__()
@@ -333,16 +339,12 @@ class UserDataExecutor:
 
     async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         try:
-            if exc_type is not None:
-                await self._transaction.rollback()
-            else:
-                await self._transaction.commit()
             await self._transaction.__aexit__(exc_type, exc_value, traceback)
             if self._arg_session is None:
                 await self.session.__aexit__(exc_type, exc_value, traceback)
         finally:
             self._entered = False
-            self._lock.release()
+            self._lock.async_release()
 
     async def _get_or_create_any(self, model: type[SqlModel_T], **kwargs) -> SqlModel_T:
         stmt = select(model).where(model.user_id == self.user_id)
@@ -351,12 +353,10 @@ class UserDataExecutor:
         obj = result.scalar_one_or_none()
         if obj is None:
             obj = model(user_id=self.user_id, **kwargs)
-            self.session.add(obj)
             await (
                 self.session.flush()
             )  # Ensure the new object is persisted before returning
-        else:
-            self.session.add(obj)
+        self.session.add(obj)
         return obj
 
     async def get_or_create_metadata(self) -> UserMetadata:
@@ -382,9 +382,8 @@ class UserDataExecutor:
         if self._user_sessions_temp is not None:
             return self._user_sessions_temp
         data: Sequence[MemorySessions] = await MemorySessions.get(
-            self.session, self.user_id
+            self.session, self.user_id, no_lock=True
         )
-        self.session.add_all(data)
         self._user_sessions_temp = data
         return data
 
@@ -397,7 +396,7 @@ class UserDataExecutor:
         ]
         await self.session.execute(stmt)
 
-    async def add_session(self, data: AwaredMemory):
+    async def add_session(self, data: MemoryModel):
         stmt = insert(MemorySessions).values(
             user_id=self.user_id, data=data.model_dump()
         )
