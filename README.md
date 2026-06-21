@@ -1,117 +1,112 @@
-# LibAmritaCore
+# nonebot-plugin-amrita
 
-**LibAmritaCore：把下一代高性能 Agent 内核，带入 NoneBot2 生态。**
+![](https://avatars.githubusercontent.com/u/229280225?s=200&v=4)
 
-## 介绍
-
-此插件为 NoneBot2 生态提供 **AmritaCore** 原生支持。
-AmritaCore 是一套开源、轻量、高性能的下一代 Agent 运行时内核，提供可中断、可自省、可恢复的现代化 AI 执行环境。
-
-了解更多：
-
-- 📖 [官方文档](https://core.amritabot.com/zh)
-- 🧩 [GitHub](https://github.com/AmritaBot/AmritaCore)
+为 NoneBot2 提供 [AmritaCore](https://github.com/AmritaBot/AmritaCore) 集成支持。
 
 ---
 
-## 快速开始
-
-### 安装插件
+## 安装
 
 ```bash
 nb plugin install nonebot_plugin_amrita
 ```
 
-### 配置插件
+## 配置
 
-配置均遵循 NoneBot2 标准的配置体系。
+| 配置项                       | 类型        | 默认值           | 说明                               |
+| ---------------------------- | ----------- | ---------------- | ---------------------------------- |
+| `amrita_cookie_enable`       | `bool`      | `False`          | 是否启用 Cookie 鉴权               |
+| `amrita_cookie`              | `str`       | 随机 16 位字符串 | 插件内部安全密钥（启用后自动生成） |
+| `amrita_mcp_enable`          | `bool`      | `False`          | 是否启用 MCP                       |
+| `amrita_mcp_clients`         | `list[str]` | `[]`             | MCP 客户端脚本路径列表             |
+| `amrita_metadata_cache_size` | `int`       | `2048`           | 用户元数据本地缓存上限             |
+| `amrita_memory_cache_size`   | `int`       | `512`            | 用户记忆本地缓存上限               |
+| `amrita_lockpool_size`       | `int`       | `1024`           | 并发锁池容量                       |
 
-#### Cookie 配置
+> AmritaCore 自身的行为配置（如 `tool_call_limit`、`memory_token_limit`、`agent_mode` 等）需要在构造 `AmritaConfig` 时传入，不作为本插件的环境变量暴露。
 
-| 配置项                 | 类型   | 默认值         | 说明                               |
-| ---------------------- | ------ | -------------- | ---------------------------------- |
-| `amrita_cookie_enable` | `bool` | `False`        | 是否启用 Cookie 鉴权               |
-| `amrita_cookie`        | `str`  | 随机16位字符串 | 插件内部安全密钥（启用后自动生成） |
-
-#### 功能配置
-
-| 配置项                   | 类型        | 默认值  | 说明                                   |
-| ------------------------ | ----------- | ------- | -------------------------------------- |
-| `amrita_mcp_enable`      | `bool`      | `False` | 是否启用 MCP（Model Context Protocol） |
-| `amrita_mcp_clients`     | `list[str]` | `[]`    | MCP 客户端脚本路径列表                 |
-| `amrita_tool_call_limit` | `int`       | `15`    | 单轮工具调用最大次数限制               |
-
-#### LLM 内存配置
-
-| 配置项                      | 类型  | 默认值 | 说明                    |
-| --------------------------- | ----- | ------ | ----------------------- |
-| `amrita_memory_token_limit` | `int` | `2048` | 对话记忆窗口 Token 上限 |
-| `amrita_memory_length`      | `int` | `50`   | 最大保留对话条数        |
-| `amrita_prompt_token_limit` | `int` | `256`  | 系统提示词 Token 上限   |
-
-#### 内置 Agent 行为配置
-
-| 配置项                      | 类型                     | 默认值      | 说明                                        |
-| --------------------------- | ------------------------ | ----------- | ------------------------------------------- |
-| `amrita_agent_mode`         | `agent / rag / none`     | `agent`     | 运行模式：智能体 / 检索生成 / 纯对话        |
-| `amrita_agent_thought_mode` | `reasoning / chat / ...` | `reasoning` | 思考模式：推理 / 对话 / 强制推理 / 可选推理 |
-
-#### 高性能缓存配置
-
-| 配置项                       | 类型  | 默认值 | 说明                            |
-| ---------------------------- | ----- | ------ | ------------------------------- |
-| `amrita_metadata_cache_size` | `int` | `2048` | 用户元数据缓存大小              |
-| `amrita_memory_cache_size`   | `int` | `512`  | 用户记忆缓存大小                |
-| `amrita_lockpool_size`       | `int` | `1024` | 并发锁池大小（支持动态 resize） |
-
----
-
-## 配置示例（.env）
+### .env 示例
 
 ```env
 AMRITA_COOKIE_ENABLE=true
 AMRITA_MCP_ENABLE=true
 AMRITA_MCP_CLIENTS='["client1","client2"]'
-AMRITA_TOOL_CALL_LIMIT=20
-AMRITA_MEMORY_TOKEN_LIMIT=3072
-AMRITA_MEMORY_LENGTH=100
-AMRITA_PROMPT_TOKEN_LIMIT=512
-AMRITA_AGENT_MODE=agent
-AMRITA_AGENT_THOUGHT_MODE=reasoning
 ```
 
 ---
 
-## 开发指南
+## 模块
 
-### 基本使用
+### `agent` — Agent 会话
 
-#### 导入核心组件
+`AgentSession` 是 AmritaCore 运行时在 NoneBot2 中的封装。继承自 `AmRuntime`，内置用量统计和会话安全机制。
+
+#### AgentSession
 
 ```python
-from nonebot_plugin_amrita.agent import AgentSession, SessionDepends
-from amrita_core import AmritaConfig, ModelPreset, PresetManager
-from amrita_core.types import Message
+from nonebot_plugin_amrita.agent import AgentSession
 ```
 
-#### 创建 Agent Session
+**类方法 `load_from`**
 
-有两种方式创建 `AgentSession`：
+```python
+@classmethod
+async def load_from(
+    cls,
+    id_or_event: Event | str,          # NoneBot 事件对象或自定义用户 ID 字符串
+    train: Message[str] | dict[str, str],  # 系统提示词 / 对话模板
+    config: AmritaConfig | None = None,    # AmritaCore 配置，None 则使用全局
+    preset: ModelPreset | None = None,     # 模型预设，None 则使用默认
+    strategy: type[AgentStrategy] = ReActAgentStrategy,  # Agent 策略
+    template: Template | str = DEFAULT_TEMPLATE,         # Jinja2 模板
+    backend: BackendSlots | None = None,                 # 记忆后端
+) -> AgentSession:
+```
 
-**方式一：使用依赖注入装饰器**
+**实例方法**
+
+| 方法                               | 说明                                       |
+| ---------------------------------- | ------------------------------------------ |
+| `async with session as agent:`     | 上下文管理器，退出时自动聚合并写入用量统计 |
+| `await agent.chat(user_input)`     | 发送消息并获取 `ChatObject` 响应           |
+| `agent.get_chatobject(user_input)` | 获取底层 `ChatObject`（内部使用）          |
+| `agent.get_backend()`              | 获取 `AmritaMemoryBackend` 实例            |
+
+**上下文管理器行为：** `__aexit__` 会遍历 session 期间所有 `ChatObject`，将 token 用量累加到当前日的 `InsightsModel` 和该用户的 `UserMetadataSchema`，然后写入数据库。整个过程受 `lock_by_session(session_id)` 保护。
+
+**使用示例：**
 
 ```python
 from nonebot import on_command
-from nonebot.params import Depends
+from nonebot.adapters import Event
+from nonebot_plugin_amrita.agent import AgentSession
 
 matcher = on_command("chat")
 
 @matcher.handle()
+async def handle_chat(event: Event):
+    async with await AgentSession.load_from(
+        id_or_event=event,
+        train={"role": "system", "content": "你是一个助手"},
+    ) as agent:
+        response = await agent.chat("你好")
+        await matcher.send(response.content)
+```
+
+#### SessionDepends
+
+NoneBot2 依赖注入辅助，自动从事件中提取用户 ID 并构造 `AgentSession`。
+
+```python
+from nonebot_plugin_amrita.agent import SessionDepends
+
+@matcher.handle()
 async def handle_chat(
     session: AgentSession = SessionDepends(
-        train={"role": "system","content": "你是一个助手"},
-        config=None,  # 使用默认配置或传入自定义 AmritaConfig
-        preset=None,  # 使用默认预设或传入自定义 ModelPreset
+        train={"role": "system", "content": "你是一个助手"},
+        config=None,   # 可选
+        preset=None,   # 可选
     )
 ):
     async with session as agent:
@@ -119,161 +114,346 @@ async def handle_chat(
         await matcher.send(response.content)
 ```
 
-**方式二：手动加载**
+> [!WARNING]
+> **AmritaCore 与 NoneBot2 的依赖注入系统互不兼容。**
+> AmritaCore 的 DI 属于 Agent 运行时内核层，与 NoneBot2 的 `Depends` 机制完全独立，不能混用。
+
+## `database` — 数据持久化
+
+基于 SQLAlchemy ORM（通过 `nonebot-plugin-orm`），管理四类数据：
+
+| ORM 模型         | 表名                     | 说明                        |
+| ---------------- | ------------------------ | --------------------------- |
+| `GlobalInsights` | `amrita_global_insights` | 每日全局使用量统计          |
+| `UserMetadata`   | `amrita_user_metadata`   | 用户级 Token 用量和调用次数 |
+| `Memory`         | `amrita_memory_data`     | 用户对话记忆（JSON）        |
+| `MemorySessions` | `amrita_memory_sessions` | 历史会话归档                |
+
+#### `make_id(obj)`
+
+将 NoneBot `Event` 或字符串标准化为统一用户 ID。
+对 Event 调用 `obj.get_event_name()` + `obj.get_session_id()` 拼接，
+直接传入字符串则原样返回。
 
 ```python
-from nonebot.adapters import Event
+from nonebot_plugin_amrita.database import make_id
 
-@matcher.handle()
-async def handle_chat(event: Event):
-    async with await AgentSession.load_from(
-        id_or_event=event,
-        train={"role": "system","content": "你是一个助手"},
-        config=None,
-        preset=None,
-    ) as agent:
-        response = await agent.chat("你好")
-        await matcher.send(response.content)
+user_id = make_id(event)        # "message_abc123" 等（取决于适配器）
+user_id = make_id("custom_id")  # 直接传入字符串
 ```
 
-### 核心 API
+> [!WARNING]
+> `make_id` 产出的 **user_id（用户标识）** 与 `MemorySessions` 表中的 **session_id（归档 ID）** 是两个概念，
+> 不要混淆。user_id 用于区分不同用户/会话场景，session 归档 ID 是历史快照的主键。
+>
+> 推荐自定义 user_id 时使用 `"AdapterType_ExtraType_UserPayload"` 格式（如 `"OneBotV11_Group_1114514"`），
+> 避免直接用 `event.get_session_id()`（该值在部分适配器中不稳定）。
 
-#### AgentSession
+#### `InsightsModel` (Pydantic)
 
-`AgentSession` 继承自 `AmRuntime`，提供以下核心方法：
+全局每日统计的 Pydantic 层，封装了 `GlobalInsights` ORM 模型的读写和过期清理。
 
-- **`load_from(id_or_event, train, config, preset, **kwargs)`**: 类方法，从事件或字符串 ID 加载会话
-  - `id_or_event`: `Event` 对象或字符串 ID（推荐使用 `event.get_session_id()`）
-  - `train`: 训练数据，可以是 `Message[str]` 或 `dict[str, str]`
-  - `config`: AmritaCore 配置，为 `None` 时使用全局配置
-  - `preset`: 模型预设，为 `None` 时使用默认预设
+| 字段           | 类型  | 说明                    |
+| -------------- | ----- | ----------------------- |
+| `date`         | `str` | 日期，格式 `YYYY-MM-DD` |
+| `token_input`  | `int` | 当日输入 token 总量     |
+| `token_output` | `int` | 当日输出 token 总量     |
+| `usage_count`  | `int` | 当日聊天请求次数        |
 
-- **`chat(input, **kwargs)`**: 发送消息并获取响应
-- **`save_context()`**: 手动保存上下文到数据库
-- **`get_chatobject(input, **kwargs)`**: 获取 `ChatObject` 实例（内部使用）
-
-#### SessionDepends
-
-依赖注入辅助函数，用于在 NoneBot2 处理器中自动注入 `AgentSession` 实例。
-
-参数与 `AgentSession.load_from` 相同。
-
-### 数据持久化
-
-插件自动管理以下数据的持久化：
-
-1. **用户记忆 (Memory)**: 存储对话历史和上下文
-2. **用户元数据 (Metadata)**: 记录 Token 使用量、调用次数等统计信息
-3. **会话归档 (Sessions)**: 历史会话快照（保留最近 20 条）
-4. **全局统计 (Insights)**: 每日全局使用情况
-
-所有数据通过 `CachedUserDataRepository` 进行缓存，支持：
-
-- LRU 缓存策略
-- 线程安全的并发锁机制
-- 脏标记追踪（仅保存变更数据）
-
-### 并发控制
-
-插件实现了多层锁机制确保数据一致性：
-
-- **数据库锁**: 基于 `user_id` 的细粒度锁，防止并发写入冲突
-- **Session 锁**: 基于 `session_id` 的操作锁，确保同一会话的串行化处理
-- **动态锁池**: 使用 `WeakValueLRUCache` 实现可动态调整的锁池（默认容量 1024）
-
-### 性能优化建议
-
-1. **复用 Session**: 同一用户的多次请求应使用相同的 `session_id`，避免重复加载数据
-2. **合理使用缓存**: 调整 `amrita_metadata_cache_size` 和 `amrita_memory_cache_size` 以平衡内存占用和性能
-3. **批量操作**: `AgentSession` 的上下文管理器会在退出时批量保存使用量统计，建议使用 `async with` 语法
-4. **限制工具调用**: 根据实际需求设置 `amrita_tool_call_limit`，避免过度消耗资源
-
-### 监控与调试
-
-#### 查看统计数据
+**类方法：**
 
 ```python
-from nonebot_plugin_amrita.database import InsightsModel
+# 获取今日统计（不存在则自动创建）
+insight = await InsightsModel.get(expire_days=7)
+print(insight.token_input, insight.token_output, insight.usage_count)
 
-# 获取今日统计
-insights = await InsightsModel.get()
-print(f"今日输入 Token: {insights.token_input}")
-print(f"今日输出 Token: {insights.token_output}")
-print(f"今日调用次数：{insights.usage_count}")
-
-# 获取历史统计（最近 7 天）
+# 获取所有日期的统计（自动清理 expire_days 之前的记录）
 all_insights = await InsightsModel.get_all(expire_days=7)
+for i in all_insights:
+    print(i.date, i.usage_count)
 ```
 
-#### 查看用户使用排名
+**实例方法：**
+
+```python
+insight = await InsightsModel.get()
+insight.usage_count += 1
+await insight.save(expire_days=7)
+```
+
+#### `UserDataExecutor`
+
+per-user 数据操作的上下文管理器。进入时获取 `database_lock(user_id)` 并开启事务，退出时自动提交/回滚。
 
 ```python
 from nonebot_plugin_amrita.database import UserDataExecutor
 
+async with UserDataExecutor(user_id) as exc:
+    # 获取或创建用户元数据（自动在新的一天重置日计数）
+    meta = await exc.get_or_create_metadata()
+    meta.called_count += 1
+
+    # 获取或创建用户记忆
+    memory = await exc.get_or_create_memory()
+    memory.memory_json = {...}
+
+    # 读取会话归档（保留最近 20 条）
+    sessions = await exc.get_or_load_sessions()
+
+    # 添加 / 删除会话归档
+    await exc.add_session(memory_model)
+    await exc.remove_session(session_id_1, session_id_2)
+```
+
+**参数：**
+
+| 参数                            | 说明                                                 |
+| ------------------------------- | ---------------------------------------------------- |
+| `user_id: str`                  | 用户唯一标识                                         |
+| `session: AsyncSession \| None` | 外部事务的 session；传入时在已有事务内创建 savepoint |
+| `with_for_update: bool`         | 是否对 SELECT 加 `FOR UPDATE` 行锁（用于更新场景）   |
+
+**静态方法：**
+
+```python
+# 获取今日使用量 Top N 用户
 top_users = await UserDataExecutor.get_top_users(limit=10)
-for user in top_users:
-    print(f"用户：{user.user_id}, 调用次数：{user.called_count}")
-```
-
-### 常见问题
-
-#### Q: 如何区分不同聊天场景？
-
-A: 使用 `event.get_session_id()` 作为唯一标识。
-
-#### Q: 如何清理用户数据？
-
-A: 通过数据库操作清理（需自行引入 ORM）：
-
-```python
-from nonebot_plugin_orm import get_session
-from nonebot_plugin_amrita.database import Memory, UserMetadata, MemorySessions
-
-async with get_session() as session:
-    # 删除特定用户的记忆
-    await session.execute(delete(Memory).where(Memory.user_id == "user_id"))
-    # 删除元数据
-    await session.execute(delete(UserMetadata).where(UserMetadata.user_id == "user_id"))
-    # 删除会话归档
-    await session.execute(delete(MemorySessions).where(MemorySessions.user_id == "user_id"))
-    await session.commit()
-```
-
-#### Q: 如何自定义模型预设？
-
-A: 创建自定义 `ModelPreset` 并传入：
-
-```python
-from amrita_core import ModelPreset
-
-custom_preset = ModelPreset(
-    name="custom",
-    model_name="gpt-4",
-    # ... 其他参数
-)
-
-async with await AgentSession.load_from(
-    event,
-    train={"role": "system","content": "你是一个助手"},
-    preset=custom_preset
-) as agent:
-    ...
+for u in top_users:
+    print(u.user_id, u.called_count, u.total_input_token)
 ```
 
 ---
 
-## 特别说明（重要）
+## `memory` — 缓存与 Schema
 
-1. **AmritaCore 与 NoneBot2 DI 系统不兼容**
-   两者为完全独立的依赖注入设计。
-   AmritaCore 注入属于 **Agent 运行时内核层**，与 NoneBot2 无关。
+#### `CachedUserDataRepository`（单例）
 
-2. **本插件数据库与 AmritaBot 同源**
-   共享数据与表结构，不互相依赖，同源设计。
+提供带 LRU 缓存的数据读取和脏标记追踪的增量写入。
 
-3. **本插件不依赖 AmritaBot**
-   可独立安装、独立运行、独立部署。
+```python
+from nonebot_plugin_amrita.memory import CachedUserDataRepository
 
-### 开发者说明
+repo = CachedUserDataRepository()  # 全局单例
 
-请注意，在 NoneBot2 环境中使用本插件时，Session 应被当作用户唯一标识使用（即通过 `event.get_session_id()` 获取），而非某个 Session 归档的 ID，避免因标识混淆导致的用户数据错乱。
+# 读取（优先从 LRU 缓存命中）
+memory = await repo.get_memory("user_id_or_event")
+metadata = await repo.get_metadata("user_id_or_event")
+sessions = await repo.get_sesssions("user_id_or_event")   # 无缓存
+
+# 增量写入（仅写脏字段）
+metadata.called_count += 1
+metadata.tokens_input += 100
+await repo.update_metadata(metadata)  # 只写 called_count 和 tokens_input
+
+memory.memory_json = new_memory_model
+await repo.update_memory_data(memory)  # 只写 memory_json 字段
+```
+
+#### Schema 类型
+
+| Schema                 | 说明                                       |
+| ---------------------- | ------------------------------------------ |
+| `UserMetadataSchema`   | 用户元数据（含 `get_dirty_vars()` 脏追踪） |
+| `MemorySchema`         | 用户记忆（含脏追踪）                       |
+| `MemorySessionsSchema` | 会话归档快照（无脏追踪）                   |
+
+```python
+from nonebot_plugin_amrita.memory import UserMetadataSchema, MemorySchema, MemorySessionsSchema
+
+# 从 ORM 模型构造
+meta = UserMetadataSchema.model_validate(orm_user_metadata)
+
+# 脏追踪
+meta.called_count += 1
+print(meta.get_dirty_vars())  # {"called_count"}
+
+# 手动标记"干净"
+meta.clean()
+```
+
+#### `add_usage`
+
+将 `UniResponseUsage` 累加到统计模型中。
+
+```python
+from nonebot_plugin_amrita.memory import add_usage
+
+add_usage(insights_model, chat_object.response.usage)    # 全局统计
+add_usage(metadata_schema, chat_object.response.usage)   # 用户统计
+```
+
+---
+
+## `config` — 插件配置
+
+```python
+from nonebot_plugin_amrita.config import config, Config
+
+cfg = config()
+print(cfg.amrita_metadata_cache_size)
+
+# 运行时替换配置
+from nonebot_plugin_amrita import replace_config
+replace_config(Config(amrita_mcp_enable=True))
+```
+
+---
+
+## `lock` — 锁原语（内部使用）
+
+基于 `aiologic.Lock` + `WeakValueLRUCache`，提供死锁检测。
+
+```python
+from nonebot_plugin_amrita.lock import database_lock, lock_by_session
+
+async with database_lock(user_id) as lock:
+    # 控制 per-user 数据并发
+
+async with lock_by_session(session_id) as lock:
+    # 控制 Agent session 串行化
+```
+
+> `aiologic.Lock` 不可重入，同一协程重复 acquire 会抛出 `RuntimeError`。
+
+---
+
+## 架构
+
+### 数据流
+
+```mermaid
+flowchart TD
+    EVT["NoneBot Event"] --> MID["make_id(event)"]
+    MID --> UID["user_id"]
+
+    UID --> LOAD["AgentSession.load_from()"]
+    LOAD --> BE["AmritaMemoryBackend.load_memory()"]
+    BE --> CACHE["CachedUserDataRepository.get_memory()"]
+    CACHE -->|LRU 命中| MEM["直接返回 MemorySchema"]
+    CACHE -->|LRU 未命中| EXC["UserDataExecutor(user_id)"]
+    EXC --> DB[("Database")]
+
+    LOAD --> CHAT["agent.chat()"]
+    CHAT --> CO["ChatObject (LLM 调用)"]
+    CO -->|"×N"| COS["self.chat_objs"]
+
+    LOAD --> EXIT["async with session: 退出时"]
+    EXIT --> LOCK["lock_by_session(session_id)"]
+    LOCK --> INS["InsightsModel.get()"]
+    LOCK --> META["get_metadata(user_id)"]
+    LOCK --> AU["add_usage() ×N"]
+    LOCK --> SAVE["insight.save()"]
+    SAVE --> DB
+```
+
+### 并发模型
+
+```mermaid
+sequenceDiagram
+    participant R1 as request 1 (user A)
+    participant LockA as database_lock(A)
+    participant ExcA as UserDataExecutor(A)
+    participant R2 as request 2 (user A)
+    participant R3 as request 3 (user B)
+    participant LockB as database_lock(B)
+    participant ExcB as UserDataExecutor(B)
+    participant DB as DB
+
+    R1->>LockA: acquire ✓
+    R2->>LockA: 等待...
+    R3->>LockB: acquire ✓
+
+    par 并发写入
+        R1->>ExcA: 进入
+        ExcA->>DB: 写入
+        ExcA->>LockA: release
+        R2->>LockA: acquire ✓
+    and
+        R3->>ExcB: 进入
+        ExcB->>DB: 写入
+        ExcB->>LockB: release
+    end
+
+    R2->>ExcA: 进入
+    ExcA->>DB: 写入
+    ExcA->>LockA: release
+```
+
+- **Per-user 写互斥**：同一用户的多个请求通过 `database_lock(user_id)` 串行化
+- **Session 串行化**：同一 Agent session 的退出逻辑通过 `lock_by_session(session_id)` 保护
+- **死锁防护**：`UserDataExecutor` 已持 per-user 锁时，内部调用 `MemorySessions.get(no_lock=True)` 跳过重复加锁
+
+### ORM 模型关系
+
+```mermaid
+erDiagram
+    UserMetadata ||--o| Memory : "user_id, CASCADE, UNIQUE"
+    UserMetadata ||--o{ MemorySessions : "user_id, CASCADE"
+
+    UserMetadata {
+        int id PK
+        string user_id UK
+        datetime last_active
+        int total_called_count
+        int total_input_token
+        int total_output_token
+        int tokens_input "当日"
+        int tokens_output "当日"
+        int called_count "当日"
+    }
+
+    Memory {
+        int id PK
+        string user_id FK
+        json memory_json
+        string extra_prompt
+    }
+
+    MemorySessions {
+        int id PK
+        string user_id FK
+        float created_at
+        json data
+    }
+```
+
+---
+
+## FAQ
+
+#### Q: 如何自定义用户 ID？
+
+A: 向 `AgentSession.load_from(id_or_event=...)` 传入自定义字符串。
+推荐格式见上方 `make_id` 处的 WARNING 块。
+
+#### Q: 如何清理用户数据？
+
+```python
+from nonebot_plugin_orm import get_session
+from nonebot_plugin_amrita.database import Memory, UserMetadata, MemorySessions
+from sqlalchemy import delete
+
+async with get_session() as session:
+    async with session.begin():
+        await session.execute(delete(Memory).where(Memory.user_id == "user_id"))
+        await session.execute(delete(UserMetadata).where(UserMetadata.user_id == "user_id"))
+        await session.execute(delete(MemorySessions).where(MemorySessions.user_id == "user_id"))
+```
+
+#### Q: 如何传入自定义 `AmritaConfig` / `ModelPreset`？
+
+```python
+from amrita_core import AmritaConfig, ModelPreset
+
+custom_config = AmritaConfig(...)
+custom_preset = ModelPreset(name="custom", model_name="gpt-4", ...)
+
+async with await AgentSession.load_from(
+    event, train={...}, config=custom_config, preset=custom_preset
+) as agent:
+    ...
+```
+
+#### Q: plugin metadata 描述是什么？
+
+本插件是 **library** 类型，不提供开箱即用的命令。你的插件需要自行导入 `AgentSession` 并在 matcher 中使用。

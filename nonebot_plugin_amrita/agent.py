@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import typing
 
 import typing_extensions
@@ -91,7 +89,7 @@ class AgentSession(AmRuntime):
         strategy: type[AgentStrategy] = ReActAgentStrategy,
         template: Template | str = DEFAULT_TEMPLATE,
         backend: BackendSlots | None = None,
-    ) -> AgentSession:
+    ) -> "AgentSession":
         uni_id = make_id(id_or_event)
         config = config or get_config()
         preset = preset or PresetManager().get_default_preset()
