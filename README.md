@@ -1,6 +1,6 @@
 nonebot-plugin-amrita
 
-https://avatars.githubusercontent.com/u/229280225?s=200&v=4
+![lg](https://avatars.githubusercontent.com/u/229280225?s=200&v=4)
 
 为 NoneBot2 提供 AmritaCore 集成支持。
 
